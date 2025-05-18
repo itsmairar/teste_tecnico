@@ -1,12 +1,22 @@
-version: '3.8'
-
 services:
   app:
     build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     volumes:
-      - .:/code
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+      - redis
+
+  worker:
+    build: .
+    command: python -u app/services/redis_consumer.py
+    volumes:
+      - .:/app
     env_file:
       - .env
     depends_on:
@@ -28,6 +38,17 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  test:
+    build: .
+    command: pytest --maxfail=1 --disable-warnings -q
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+      - redis
 
 volumes:
   mongo_data:

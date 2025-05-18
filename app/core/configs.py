@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     RELOAD: bool = True
     BASIC_AUTH_USERNAME: str
     BASIC_AUTH_PASSWORD: str
-    REDIS_URI: str = "redis://localhost:6379"
+    REDIS_URI: str
 
     class Config:
         env_file = ".env"

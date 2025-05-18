@@ -1,6 +1,6 @@
 import secrets
 
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, Security, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.core.configs import settings
@@ -8,20 +8,19 @@ from app.core.configs import settings
 security = HTTPBasic()
 
 
-async def autenticar_credenciais(
-    credentials: HTTPBasicCredentials = Depends(security),
-):
-    username_valido = secrets.compare_digest(
+def autenticar_credenciais(
+    credentials: HTTPBasicCredentials = Security(security),
+) -> str:
+    correct_user = secrets.compare_digest(
         credentials.username, settings.BASIC_AUTH_USERNAME
     )
-    senha_valida = secrets.compare_digest(
+    correct_pass = secrets.compare_digest(
         credentials.password, settings.BASIC_AUTH_PASSWORD
     )
-
-    if not (username_valido and senha_valida):
+    if not (correct_user and correct_pass):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciais inválidas",
+            detail="Usuário ou senha inválidos",
             headers={"WWW-Authenticate": "Basic"},
         )
-    return {"username": credentials.username}
+    return credentials.username

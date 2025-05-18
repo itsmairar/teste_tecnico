@@ -1,0 +1,49 @@
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: mongo-test
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data_test:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-test
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-test
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongo-test:27017/testdb
+      - REDIS_URI=redis://redis-test:6379
+      - BASIC_AUTH_USERNAME=${BASIC_AUTH_USERNAME:-admin}
+      - BASIC_AUTH_PASSWORD=${BASIC_AUTH_PASSWORD:-admin}
+    depends_on:
+      - mongo
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-test
+    command: python worker.py
+    environment:
+      - MONGO_URI=mongodb://mongo-test:27017/testdb
+      - REDIS_URI=redis://redis-test:6379
+      - BASIC_AUTH_USERNAME=${BASIC_AUTH_USERNAME:-admin}
+      - BASIC_AUTH_PASSWORD=${BASIC_AUTH_PASSWORD:-admin}
+    depends_on:
+      - redis
+      - mongo
+
+volumes:
+  mongo_data_test:

@@ -15,3 +15,11 @@ class EnrollmentMessage(BaseModel):
     name: str
     cpf: str
     age: int
+
+
+class EnrollmentStatus(BaseModel):
+    id: str
+    name: str
+    cpf: str
+    age: int
+    status: str = Field(..., example="processing")

@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import redis.asyncio as redis
@@ -12,6 +13,7 @@ async def process_enrollments():
     )
 
     while True:
+        await asyncio.sleep(2)
         _, message = await redis_client.blpop("enrollments")
         enrollment_data = json.loads(message)
 
@@ -29,3 +31,7 @@ async def process_enrollments():
 
         await mongo_db["enrollments"].insert_one(enrollment_data)
         print(f"Matrícula salva: {enrollment_data['cpf']}")
+
+
+if __name__ == "__main__":
+    asyncio.run(process_enrollments())

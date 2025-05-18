@@ -1,83 +1,50 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from pymongo.errors import PyMongoError
+from fastapi import APIRouter, status
 
-from app.core.database import mongo_db
-from app.core.deps import get_current_user
 from app.schemas.enrollment_schema import (
     EnrollmentIn,
-    EnrollmentMessage,
     EnrollmentOut,
+    EnrollmentStatus,
 )
-from app.services.redis_producer import RedisProducer
+from app.services.enrollment_service import (
+    create_enrollment,
+    get_enrollment_status,
+    list_enrollments,
+)
 
 router = APIRouter()
-producer = RedisProducer()
 
 
 @router.post(
-    "/", response_model=EnrollmentOut, status_code=status.HTTP_202_ACCEPTED
+    "/",
+    response_model=EnrollmentOut,
+    status_code=status.HTTP_202_ACCEPTED,
 )
-async def create_enrollment(
-    enrollment: EnrollmentIn, user=Depends(get_current_user)
-):
+async def create_enrollment_endpoint(enrollment: EnrollmentIn):
     """
-    Envia matrícula para a fila Redis, desde que não exista um CPF duplicado.
+    Envia matrícula para a fila Redis, validando CPF e faixa de idade.
     """
-    try:
-        existing = await mongo_db["enrollments"].find_one(
-            {"cpf": enrollment.cpf}
-        )
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Já existe uma matrícula com CPF {enrollment.cpf}",
-            )
-
-    except PyMongoError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao consultar o banco de dados",
-        )
-
-    try:
-        message = EnrollmentMessage(**enrollment.model_dump())
-        await producer.enqueue_enrollment(message)
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Não foi possível processar a matrícula no momento. "
-                "Tente novamente mais tarde."
-            ),
-        )
-
-    return EnrollmentOut(id="em processamento", **enrollment.model_dump())
+    return await create_enrollment(enrollment)
 
 
 @router.get(
-    "/", response_model=list[EnrollmentOut], status_code=status.HTTP_200_OK
+    "/",
+    response_model=list[EnrollmentOut],
+    status_code=status.HTTP_200_OK,
 )
-async def list_enrollments(user=Depends(get_current_user)):
+async def list_enrollments_endpoint():
     """
-    Lista todas as matrículas já salvas no MongoDB.
+    Lista todas as matrículas já concluídas no MongoDB.
     """
-    try:
-        enrollments = []
-        cursor = mongo_db["enrollments"].find({})
-        async for doc in cursor:
-            enrollments.append(
-                EnrollmentOut(
-                    id=str(doc["_id"]),
-                    name=doc["name"],
-                    cpf=doc["cpf"],
-                    age=doc["age"],
-                )
-            )
-        return enrollments
+    return await list_enrollments()
 
-    except PyMongoError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao buscar as matrículas no banco",
-        )
+
+@router.get(
+    "/{enroll_id}",
+    response_model=EnrollmentStatus,
+    status_code=status.HTTP_200_OK,
+)
+async def get_enrollment_status_endpoint(enroll_id: str):
+    """
+    Consulta status de uma matrícula pelo seu ID.
+    """
+    return await get_enrollment_status(enroll_id)
