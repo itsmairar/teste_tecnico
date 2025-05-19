@@ -7,7 +7,6 @@ from app.core.configs import settings
 
 app = FastAPI(
     title=settings.TITLE,
-    # aqui aplicamos o HTTPBasic globalmente
     dependencies=[Depends(autenticar_credenciais)],
 )
 
